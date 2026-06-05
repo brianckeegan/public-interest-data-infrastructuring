@@ -22,6 +22,12 @@ concurrency:
   group: build-pdf-${{ github.ref }}
   cancel-in-progress: true
 
+# Run JavaScript-based actions (checkout, upload-artifact, action-gh-release) on
+# Node 24. Node 20 is deprecated and force-migrated on 2026-06-16; opting in now
+# silences the deprecation warning and is harmless once Node 24 is the default.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   build:
     runs-on: ubuntu-latest
