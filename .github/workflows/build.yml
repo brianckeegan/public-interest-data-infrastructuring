@@ -22,18 +22,12 @@ concurrency:
   group: build-pdf-${{ github.ref }}
   cancel-in-progress: true
 
-# Run JavaScript-based actions (checkout, upload-artifact, action-gh-release) on
-# Node 24. Node 20 is deprecated and force-migrated on 2026-06-16; opting in now
-# silences the deprecation warning and is harmless once Node 24 is the default.
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Stage a CI-safe filename (the source file starts with "!")
         # latex-action resolves root_file through a glob matcher in which a
@@ -52,7 +46,7 @@ jobs:
           latexmk_shell_escape: false
 
       - name: Upload PDF as a workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: manuscript-pdf
           path: manuscript.pdf
@@ -60,7 +54,7 @@ jobs:
 
       - name: Publish rolling "latest" release (main only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: latest
           name: Latest build
