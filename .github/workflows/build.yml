@@ -1,0 +1,66 @@
+name: Build PDF
+
+# Compile the ACM manuscript on every push to main (and on PRs / manual runs),
+# then publish the compiled PDF as the rolling "latest" release so the README
+# can link to a stable, always-current download.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+# Note: no `paths:` filter -- in Actions path filters a leading "!" means
+# "negate/exclude", so it cannot match a file literally named "!manuscript.tex".
+# Building on every push to main sidesteps that pitfall.
+
+# Allow the release step to create/update the "latest" release and its tag.
+permissions:
+  contents: write
+
+# Don't let overlapping runs race on the rolling release.
+concurrency:
+  group: build-pdf-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Stage a CI-safe filename (the source file starts with "!")
+        # latex-action resolves root_file through a glob matcher in which a
+        # leading "!" means negation, so it cannot target "!manuscript.tex"
+        # directly. Compiling an identical copy named manuscript.tex sidesteps
+        # that and produces manuscript.pdf with no rename step.
+        run: cp '!manuscript.tex' manuscript.tex
+
+      - name: Compile LaTeX (acmart + classic BibTeX)
+        # latex-action ships a full TeX Live; the bundled acmart.cls and
+        # ACM-Reference-Format.bst in this repo are found first. latexmk
+        # auto-runs bibtex from \bibliography{bibliography}.
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: manuscript.tex
+          latexmk_shell_escape: false
+
+      - name: Upload PDF as a workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: manuscript-pdf
+          path: manuscript.pdf
+          if-no-files-found: error
+
+      - name: Publish rolling "latest" release (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: latest
+          name: Latest build
+          body: >-
+            Automatically compiled from `!manuscript.tex` at
+            ${{ github.sha }}. This release always holds the most recent build of
+            the manuscript on `main`.
+          files: manuscript.pdf
+          fail_on_unmatched_files: true
